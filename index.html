@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Lab - Local Artifacts</title>
+    <style>
+        body { background: #0d1117; color: #c9d1d9; font-family: Consolas, monospace; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: #161b22; border: 1px solid #30363d; padding: 30px; border-radius: 6px; width: 440px; }
+        h1 { color: #58a6ff; font-size: 20px; margin-top: 0; text-align: center; }
+        .sub { color: #8b949e; font-size: 11px; margin-bottom: 24px; text-align: center; }
+        .links { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        a.btn { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; padding: 10px; text-decoration: none; border-radius: 4px; font-size: 12px; text-align: center; display: block; }
+        a.btn:hover { background: #30363d; border-color: #8b949e; }
+        details { background: #010409; border: 1px solid #30363d; border-radius: 4px; padding: 10px; font-size: 11px; color: #8b949e; }
+        summary { cursor: pointer; color: #58a6ff; font-weight: bold; }
+        code { color: #d2a8ff; }
+        .footer { color: #484f58; font-size: 10px; margin-top: 20px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Security Lab Portal</h1>
+        <div class="sub">Educational execution and telemetry artifacts</div>
+        
+        <div class="links">
+            <a class="btn" href="VirusLab.hta">1. Download VirusLab.hta (Replication & Persistence)</a>
+            <a class="btn" href="PayloadDryRun.hta">2. Download PayloadDryRun.hta (Blast Radius Audit)</a>
+            <a class="btn" href="notepad-demo.vbs">3. Download notepad-demo.vbs (UI Automation)</a>
+        </div>
+
+        <details>
+            <summary>Deployment Instructions</summary>
+            <p>To deploy this on a GitHub Repository for GitHub Pages:</p>
+            <ol style="margin: 5px 0 0 15px; padding: 0;">
+                <li>Create a public repository on GitHub.</li>
+                <li>Upload <code>index.html</code> alongside these three script files to the root directory.</li>
+                <li>Go to repository <strong>Settings &gt; Pages</strong>.</li>
+                <li>Set source to <strong>Deploy from a branch (main / root)</strong>.</li>
+                <li>Your portal will be live at <code>https://&lt;username&gt;.github.io/&lt;repo&gt;/</code>.</li>
+            </ol>
+        </details>
+
+        <div class="footer">For isolated VM testing only. Triggers Mark-of-the-Web on download.</div>
+    </div>
+</body>
+</html>

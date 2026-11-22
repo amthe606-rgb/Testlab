@@ -1,0 +1,162 @@
+<html>
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=9">
+<title>Payload Dry Run</title>
+<hta:application
+    id="oHTA"
+    applicationname="PayloadDryRun"
+    border="thin"
+    caption="yes"
+    maximizebutton="no"
+    minimizebutton="yes"
+    scroll="no"
+    singleinstance="no"
+    windowstate="normal"
+/>
+<style>
+  body { background:#0d1117; color:#c9d1d9; font-family:Consolas,monospace; margin:0; padding:14px; }
+  h1 { font-size:16px; color:#f0883e; margin:0 0 3px 0; letter-spacing:1px; }
+  .sub { color:#8b949e; font-size:11px; margin-bottom:10px; }
+  button { background:#21262d; color:#c9d1d9; border:1px solid #30363d; padding:7px 11px;
+           margin:0 5px 8px 0; font-family:inherit; font-size:12px; cursor:pointer; }
+  button:hover { background:#30363d; border-color:#8b949e; }
+  button.warn { border-color:#da3633; color:#ff7b72; }
+  pre { background:#010409; border:1px solid #30363d; padding:9px; margin:0;
+        font-size:11px; white-space:pre-wrap; overflow:auto; height:420px; }
+</style>
+<script language="VBScript">
+Dim fso, sh, gLog, gDict, gFiles, gBytes, gSamples, gCap
+Set fso = CreateObject("Scripting.FileSystemObject")
+Set sh  = CreateObject("WScript.Shell")
+Set gDict = CreateObject("Scripting.Dictionary")
+gLog = ""
+gCap = 100000
+
+Sub Log(msg)
+  gLog = gLog & msg & vbCrLf
+  document.getElementById("log").innerText = gLog
+End Sub
+
+Function Pad(v, w)
+  Dim s
+  s = CStr(v)
+  Do While Len(s) < w
+    s = s & " "
+  Loop
+  Pad = s
+End Function
+
+Function Human(bytes)
+  If bytes > 1073741824 Then
+    Human = FormatNumber(bytes / 1073741824, 2) & " GB"
+  ElseIf bytes > 1048576 Then
+    Human = FormatNumber(bytes / 1048576, 1) & " MB"
+  ElseIf bytes > 1024 Then
+    Human = FormatNumber(bytes / 1024, 1) & " KB"
+  Else
+    Human = bytes & " B"
+  End If
+End Function
+
+Sub Walk(path)
+  On Error Resume Next
+  If gFiles >= gCap Then Exit Sub
+  Dim f, subf, ext
+  If Not fso.FolderExists(path) Then Exit Sub
+  For Each f In fso.GetFolder(path).Files
+    gFiles = gFiles + 1
+    gBytes = gBytes + f.Size
+    ext = LCase(fso.GetExtensionName(f.Name))
+    If ext = "" Then ext = "(none)"
+    If gDict.Exists(ext) Then
+      gDict(ext) = gDict(ext) + 1
+    Else
+      gDict.Add ext, 1
+    End If
+    If gSamples < 10 Then
+      gSamples = gSamples + 1
+      gLog = gLog & "      would touch: " & f.Path & vbCrLf
+    End If
+    If gFiles >= gCap Then Exit Sub
+  Next
+  For Each subf In fso.GetFolder(path).SubFolders
+    If (subf.Attributes And 1024) = 0 Then
+      Walk subf.Path
+    End If
+    If gFiles >= gCap Then Exit Sub
+  Next
+End Sub
+
+Sub Scan()
+  On Error Resume Next
+  Dim home, names, i, fpath, total, tbytes, tf, tb
+  home = sh.ExpandEnvironmentStrings("%USERPROFILE%")
+  names = Array("Documents", "Desktop", "Pictures", "Downloads", "Videos", "Music")
+  gDict.RemoveAll
+  gLog = ""
+  total = 0 : tbytes = 0
+
+  Log "  PAYLOAD DRY RUN - read-only. nothing is changed, renamed, moved or deleted."
+  Log ""
+  Log "  folder                            files         size"
+  Log "  -------------------------------------------------------"
+  For i = 0 To UBound(names)
+    fpath = home & "\" & names(i)
+    If fso.FolderExists(fpath) Then
+      gFiles = 0 : gBytes = 0 : gSamples = 0
+      Walk fpath
+      Log "  " & Pad(names(i), 30) & Pad(gFiles, 10) & "   " & Human(gBytes)
+      total = total + gFiles
+      tbytes = tbytes + gBytes
+    End If
+  Next
+  Log "  -------------------------------------------------------"
+  Log "  TOTAL                             " & Pad(total, 10) & "   " & Human(tbytes)
+  Log ""
+  Log "  That is the blast radius. A ransomware payload with your"
+  Log "  normal user rights could encrypt every byte above."
+  Log ""
+  Log "  most common file types in range:"
+  Dim k
+  k = ""
+  For Each k In gDict.Keys
+    k = k & "    ." & k & "  x" & gDict(k) & vbCrLf
+  Next
+  Log k
+  Log "  A real payload then appends one loop and one call:"
+  Log "    CryptAcquireContext / CryptEncrypt   (Win32 crypto)"
+  Log "    or  AesManaged in .NET"
+  Log "    then  vssadmin delete shadows /all  (kill backups)"
+  Log "    then  write a README with the key"
+  Log ""
+  Log "  None of that is clever. It is this list plus a for-loop."
+  Log "  Which is why the defence is backup, not detection."
+  Log ""
+End Sub
+
+Sub Clear()
+  gLog = ""
+  document.getElementById("log").innerText = ""
+End Sub
+
+Sub Window_OnLoad
+  document.getElementById("b1").onclick = GetRef("Scan")
+  document.getElementById("b2").onclick = GetRef("Clear")
+  window.resizeTo 720, 620
+  Log "  Payload Dry Run"
+  Log "  Read-only audit of what a destructive payload would reach."
+  Log ""
+  Log "  This file cannot encrypt, delete, or transmit anything."
+  Log "  Press 'Scan' to measure. Compare the total to your last backup."
+  Log ""
+End Sub
+</script>
+</head>
+<body>
+<h1>BLAST RADIUS</h1>
+<div class="sub">Read-only payload dry run. Measures what ransomware would hit. Modifies nothing.</div>
+<button id="b1" class="warn">Scan my profile (read-only)</button>
+<button id="b2">Clear</button>
+<pre id="log"></pre>
+</body>
+</html>

@@ -1,0 +1,245 @@
+<html>
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=9">
+<title>Virus Lab</title>
+<hta:application
+    id="oHTA"
+    applicationname="VirusLab"
+    border="thin"
+    caption="yes"
+    maximizebutton="no"
+    minimizebutton="yes"
+    scroll="no"
+    singleinstance="no"
+    windowstate="normal"
+/>
+<style>
+  body { background:#0d1117; color:#c9d1d9; font-family:Consolas,monospace; margin:0; padding:14px; }
+  h1 { font-size:16px; color:#58a6ff; margin:0 0 3px 0; letter-spacing:1px; }
+  .sub { color:#8b949e; font-size:11px; margin-bottom:10px; }
+  .row { margin:0 0 10px 0; }
+  button { background:#21262d; color:#c9d1d9; border:1px solid #30363d; padding:7px 11px;
+           margin:0 5px 5px 0; font-family:inherit; font-size:12px; cursor:pointer; }
+  button:hover { background:#30363d; border-color:#8b949e; }
+  button.danger { border-color:#da3633; color:#ff7b72; }
+  button.safe { border-color:#238636; color:#7ee787; }
+  pre { background:#010409; border:1px solid #30363d; padding:9px; margin:0 0 8px 0;
+        font-size:11px; white-space:pre-wrap; overflow:auto; }
+  #src { display:none; height:150px; color:#8b949e; }
+  #log { height:300px; color:#c9d1d9; }
+</style>
+<script language="VBScript">
+Dim fso, sh, gLog
+Set fso = CreateObject("Scripting.FileSystemObject")
+Set sh  = CreateObject("WScript.Shell")
+gLog = ""
+
+Sub Log(msg)
+  gLog = gLog & msg & vbCrLf
+  document.getElementById("log").innerText = gLog
+End Sub
+
+Function SelfPath()
+  Dim s, q
+  s = oHTA.commandLine
+  q = InStr(s, """")
+  If q > 0 Then
+    SelfPath = Mid(s, q + 1, InStr(q + 1, s, """") - q - 1)
+  Else
+    SelfPath = Split(Trim(s), " ")(0)
+  End If
+End Function
+
+Function LabDir()
+  LabDir = sh.ExpandEnvironmentStrings("%TEMP%") & "\VirusLab"
+End Function
+
+Function StartupLnk()
+  StartupLnk = sh.SpecialFolders("Startup") & "\VirusLab DEMO.lnk"
+End Function
+
+Sub EnsureLab()
+  If Not fso.FolderExists(LabDir()) Then fso.CreateFolder(LabDir())
+End Sub
+
+' ---------- 1. show source ----------
+Sub ShowSource()
+  On Error Resume Next
+  Dim ts, s
+  Set ts = fso.OpenTextFile(SelfPath(), 1)
+  s = ""
+  Do Until ts.AtEndOfStream
+    s = s & ts.ReadLine & vbCrLf
+    If Len(s) > 24000 Then
+      s = s & "... (truncated)" & vbCrLf
+      Exit Do
+    End If
+  Loop
+  ts.Close
+  document.getElementById("src").innerText = s
+  document.getElementById("src").style.display = "block"
+  Log "  [source] I opened my own file and printed every byte above."
+  Log "           there is no second hidden payload. what you read is all there is."
+  Log ""
+End Sub
+
+' ---------- 2. replicate ----------
+Sub Replicate()
+  On Error Resume Next
+  EnsureLab()
+  Dim n, target
+  n = 1
+  Do While fso.FileExists(LabDir() & "\strain-" & n & ".hta")
+    n = n + 1
+  Loop
+  If n > 4 Then
+    Log "  [replicate] 4 strains already in the lab. A real virus never stops."
+    Log "              This one has a hard limit - that is the difference."
+    Log ""
+    Exit Sub
+  End If
+  target = LabDir() & "\strain-" & n & ".hta"
+  fso.CopyFile SelfPath(), target, True
+  If Err.Number <> 0 Then
+    Log "  [replicate] failed: " & Err.Description
+    Err.Clear
+    Exit Sub
+  End If
+  Log "  [replicate] copied myself -> " & target
+  Log "              source and copy are byte-identical ("
+  Log "              " & fso.GetFile(SelfPath()).Size & " bytes)."
+  If n = 1 Then
+    Log "              open that file and it runs this same program."
+    Log "              a file that copies itself and runs = a virus."
+  End If
+  Log ""
+  ListLab()
+End Sub
+
+Sub ListLab()
+  On Error Resume Next
+  Dim f, out
+  If Not fso.FolderExists(LabDir()) Then
+    Log "  lab is empty."
+    Exit Sub
+  End If
+  out = "  lab now contains:" & vbCrLf
+  For Each f In fso.GetFolder(LabDir()).Files
+    out = out & "    " & f.Name & "   (" & f.Size & " bytes)" & vbCrLf
+  Next
+  Log out
+End Sub
+
+' ---------- 3. persist ----------
+Sub Persist()
+  On Error Resume Next
+  Dim lnk
+  Set lnk = sh.CreateShortcut(StartupLnk())
+  lnk.TargetPath = sh.ExpandEnvironmentStrings("%WINDIR%") & "\System32\mshta.exe"
+  lnk.Arguments = """" & SelfPath() & """"
+  lnk.WorkingDirectory = fso.GetParentFolderName(SelfPath())
+  lnk.Description = "Virus Lab demo. Delete this shortcut to stop it."
+  lnk.Save
+  If Err.Number <> 0 Then
+    Log "  [persist] failed: " & Err.Description
+    Err.Clear
+    Exit Sub
+  End If
+  Log "  [persist] wrote shortcut -> " & StartupLnk()
+  Log "            next login Windows runs me automatically."
+  Log "            that is persistence: malware surviving reboot."
+  Log "            real malware also uses HKCU\...\Run,"
+  Log "            Task Scheduler, and services - quieter, not smarter."
+  Log ""
+End Sub
+
+Sub Unpersist()
+  On Error Resume Next
+  If fso.FileExists(StartupLnk()) Then
+    fso.DeleteFile StartupLnk(), True
+    Log "  [persist] removed the startup shortcut."
+  Else
+    Log "  [persist] no startup shortcut present."
+  End If
+  Log ""
+End Sub
+
+' ---------- 4. payload ----------
+Sub Payload()
+  On Error Resume Next
+  EnsureLab()
+  Dim t
+  Set t = fso.CreateTextFile(LabDir() & "\pwned.txt", True)
+  t.WriteLine "Written by Virus Lab on " & Now()
+  t.WriteLine "I used your normal user permission - no admin needed."
+  t.WriteLine "A ransomware payload would encrypt every document it can reach"
+  t.WriteLine "with this exact same permission."
+  t.Close
+  Log "  [payload] wrote " & LabDir() & "\pwned.txt"
+  Log "            proof that arbitrary file write already works."
+  Log "            the payload is the easy part. transport is the hard part."
+  Log ""
+  ListLab()
+End Sub
+
+' ---------- cleanup ----------
+Sub Cleanup()
+  On Error Resume Next
+  Dim f
+  Unpersist()
+  If fso.FolderExists(LabDir()) Then
+    For Each f In fso.GetFolder(LabDir()).Files
+      fso.DeleteFile f.Path, True
+    Next
+    fso.DeleteFolder LabDir(), True
+    Log "  [cleanup] deleted the lab folder and every copy."
+  Else
+    Log "  [cleanup] no lab folder to delete."
+  End If
+  Log "  [cleanup] done. nothing of mine should remain."
+  Log ""
+End Sub
+
+' ---------- boot ----------
+Sub Window_OnLoad
+  document.getElementById("b1").onclick = GetRef("ShowSource")
+  document.getElementById("b2").onclick = GetRef("Replicate")
+  document.getElementById("b3").onclick = GetRef("Persist")
+  document.getElementById("b4").onclick = GetRef("Payload")
+  document.getElementById("b5").onclick = GetRef("Unpersist")
+  document.getElementById("b6").onclick = GetRef("Cleanup")
+
+  window.resizeTo 700, 640
+  Log "Virus Lab - harmless, visible, self-replicating demo."
+  Log ""
+  Log "  file : " & SelfPath()
+  Log "  user : " & sh.ExpandEnvironmentStrings("%USERNAME%") & " @ " & sh.ExpandEnvironmentStrings("%COMPUTERNAME%")
+  Log "  ran  : no installer, no admin, no UAC prompt, no console."
+  Log ""
+  If fso.FileExists(StartupLnk()) Then
+    Log "  NOTE: persistence is currently ON (startup shortcut exists)."
+    Log "        press 5 to remove it."
+    Log ""
+  End If
+  Log "  go in order. read each line. nothing here is hidden."
+  Log ""
+End Sub
+</script>
+</head>
+<body>
+<h1>VIRUS LAB</h1>
+<div class="sub">A harmless, self-replicating demo. Every stage is visible and fully reversible.</div>
+<div class="row">
+  <button id="b1">1. Show my source</button>
+  <button id="b2">2. Replicate (copy myself)</button>
+  <button id="b3">3. Persist (survive reboot)</button>
+  <button id="b4">4. Payload (write a file)</button>
+</div>
+<div class="row">
+  <button id="b5" class="danger">5. Remove persistence</button>
+  <button id="b6" class="safe">6. Clean up everything</button>
+</div>
+<pre id="src"></pre>
+<pre id="log"></pre>
+</body>
+</html>
